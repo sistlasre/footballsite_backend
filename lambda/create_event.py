@@ -7,13 +7,21 @@ dynamodb = boto3.resource('dynamodb')
 events_table = dynamodb.Table(os.environ['EVENTS_TABLE'])
 
 def lambda_handler(event, context):
-    organizer_id = event['organizer_id']
-    event_name = event['event_name']
-    date_start = event.get('date_start', None)
-    date_end = event.get('date_end', None)
-    parent_event_id = event.get('parent_event_id', None)
-    location = event.get('location', None)
-    additional_info = event.get('additional_info', None)
+    if 'body' in event:
+        if isinstance(event['body'], str):
+            body = json.loads(event['body'])
+        else:
+            body = event['body']
+    else:
+        body = event
+
+    organizer_id = body['organizer_id']
+    event_name = body['event_name']
+    date_start = body.get('date_start', None)
+    date_end = body.get('date_end', None)
+    parent_event_id = body.get('parent_event_id', None)
+    location = body.get('location', None)
+    additional_info = body.get('additional_info', None)
     event_id = str(uuid.uuid4())
 
     item = {

@@ -7,9 +7,17 @@ dynamodb = boto3.resource('dynamodb')
 teams_table = dynamodb.Table(os.environ['TEAMS_TABLE'])
 
 def lambda_handler(event, context):
-    team_captain_id = event['team_captain_id']
-    team_name = event['team_name']
-    parent_team_id = event.get('parent_team_id', None)
+    if 'body' in event:
+        if isinstance(event['body'], str):
+            body = json.loads(event['body'])
+        else:
+            body = event['body']
+    else:
+        body = event
+
+    team_captain_id = body['team_captain_id']
+    team_name = body['team_name']
+    parent_team_id = body.get('parent_team_id', None)
     team_id = str(uuid.uuid4())
 
     item = {
