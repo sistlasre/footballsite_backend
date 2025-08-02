@@ -459,6 +459,31 @@ resource "aws_lambda_permission" "allow_apigw_signin_user" {
 }
 
 # --------------------
+# API Gateway Integration and Route for Endpoints Dashboard
+# --------------------
+resource "aws_apigatewayv2_integration" "endpoints_dashboard_integration" {
+  api_id             = aws_apigatewayv2_api.api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.endpoints_dashboard.invoke_arn
+  integration_method = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "endpoints_dashboard_route" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /endpoints"
+  target    = "integrations/${aws_apigatewayv2_integration.endpoints_dashboard_integration.id}"
+}
+
+resource "aws_lambda_permission" "allow_apigw_endpoints_dashboard" {
+  statement_id  = "AllowExecutionFromAPIGWEndpointsDashboard"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.endpoints_dashboard.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+# --------------------
 # Outputs
 # --------------------
 output "api_gateway_url" {
@@ -484,6 +509,11 @@ output "teams_table_name" {
 output "event_registrations_table_name" {
   description = "Name of the event registrations DynamoDB table"
   value       = aws_dynamodb_table.event_registrations_table.name
+}
+
+output "endpoints_dashboard_url" {
+  description = "Endpoints Dashboard URL"
+  value       = "${aws_apigatewayv2_stage.api_stage.invoke_url}/endpoints"
 }
 
 output "api_endpoints" {
