@@ -108,6 +108,10 @@ resource "aws_dynamodb_table" "events_table" {
     type = "S"
   }
   attribute {
+    name = "organizer_id"
+    type = "S"
+  }
+  attribute {
     name = "status"
     type = "S"
   }
@@ -127,6 +131,12 @@ resource "aws_dynamodb_table" "events_table" {
   global_secondary_index {
     name            = "name-index"
     hash_key        = "name"
+    projection_type = "ALL"
+  }
+  
+  global_secondary_index {
+    name            = "organizer_id-index"
+    hash_key        = "organizer_id"
     projection_type = "ALL"
   }
   
@@ -361,6 +371,150 @@ resource "aws_lambda_function" "signin_user" {
 }
 
 # --------------------
+# Lambda Functions for Event Management
+# --------------------
+resource "aws_lambda_function" "create_event" {
+  function_name = "${var.project_name}-create-event"
+  role          = aws_iam_role.lambda_exec_role.arn
+  runtime       = "python3.9"
+  handler       = "create_event.lambda_handler"
+  timeout       = 30
+  memory_size   = 512
+
+  filename         = "lambda/create_event.zip"
+  source_code_hash = filebase64sha256("lambda/create_event.zip")
+
+  environment {
+    variables = {
+      USER_TABLE = aws_dynamodb_table.user_table.name
+      EVENTS_TABLE = aws_dynamodb_table.events_table.name
+    }
+  }
+
+  tags = {
+    Name = "Create Event Lambda"
+  }
+}
+
+resource "aws_lambda_function" "get_event" {
+  function_name = "${var.project_name}-get-event"
+  role          = aws_iam_role.lambda_exec_role.arn
+  runtime       = "python3.9"
+  handler       = "get_event.lambda_handler"
+  timeout       = 30
+  memory_size   = 512
+
+  filename         = "lambda/get_event.zip"
+  source_code_hash = filebase64sha256("lambda/get_event.zip")
+
+  environment {
+    variables = {
+      USER_TABLE = aws_dynamodb_table.user_table.name
+      EVENTS_TABLE = aws_dynamodb_table.events_table.name
+    }
+  }
+
+  tags = {
+    Name = "Get Event Lambda"
+  }
+}
+
+resource "aws_lambda_function" "delete_event" {
+  function_name = "${var.project_name}-delete-event"
+  role          = aws_iam_role.lambda_exec_role.arn
+  runtime       = "python3.9"
+  handler       = "delete_event.lambda_handler"
+  timeout       = 30
+  memory_size   = 512
+
+  filename         = "lambda/delete_event.zip"
+  source_code_hash = filebase64sha256("lambda/delete_event.zip")
+
+  environment {
+    variables = {
+      USER_TABLE = aws_dynamodb_table.user_table.name
+      EVENTS_TABLE = aws_dynamodb_table.events_table.name
+    }
+  }
+
+  tags = {
+    Name = "Delete Event Lambda"
+  }
+}
+
+# --------------------
+# Lambda Functions for Team Management
+# --------------------
+resource "aws_lambda_function" "create_team" {
+  function_name = "${var.project_name}-create-team"
+  role          = aws_iam_role.lambda_exec_role.arn
+  runtime       = "python3.9"
+  handler       = "create_team.lambda_handler"
+  timeout       = 30
+  memory_size   = 512
+
+  filename         = "lambda/create_team.zip"
+  source_code_hash = filebase64sha256("lambda/create_team.zip")
+
+  environment {
+    variables = {
+      USER_TABLE = aws_dynamodb_table.user_table.name
+      TEAMS_TABLE = aws_dynamodb_table.teams_table.name
+    }
+  }
+
+  tags = {
+    Name = "Create Team Lambda"
+  }
+}
+
+resource "aws_lambda_function" "get_team" {
+  function_name = "${var.project_name}-get-team"
+  role          = aws_iam_role.lambda_exec_role.arn
+  runtime       = "python3.9"
+  handler       = "get_team.lambda_handler"
+  timeout       = 30
+  memory_size   = 512
+
+  filename         = "lambda/get_team.zip"
+  source_code_hash = filebase64sha256("lambda/get_team.zip")
+
+  environment {
+    variables = {
+      USER_TABLE = aws_dynamodb_table.user_table.name
+      TEAMS_TABLE = aws_dynamodb_table.teams_table.name
+    }
+  }
+
+  tags = {
+    Name = "Get Team Lambda"
+  }
+}
+
+resource "aws_lambda_function" "delete_team" {
+  function_name = "${var.project_name}-delete-team"
+  role          = aws_iam_role.lambda_exec_role.arn
+  runtime       = "python3.9"
+  handler       = "delete_team.lambda_handler"
+  timeout       = 30
+  memory_size   = 512
+
+  filename         = "lambda/delete_team.zip"
+  source_code_hash = filebase64sha256("lambda/delete_team.zip")
+
+  environment {
+    variables = {
+      USER_TABLE = aws_dynamodb_table.user_table.name
+      TEAMS_TABLE = aws_dynamodb_table.teams_table.name
+    }
+  }
+
+  tags = {
+    Name = "Delete Team Lambda"
+  }
+}
+
+# --------------------
 # Lambda Function: Endpoints Dashboard
 # --------------------
 resource "aws_lambda_function" "endpoints_dashboard" {
@@ -459,6 +613,144 @@ resource "aws_lambda_permission" "allow_apigw_signin_user" {
 }
 
 # --------------------
+# API Gateway Integrations and Routes for Event Management
+# --------------------
+resource "aws_apigatewayv2_integration" "create_event_integration" {
+  api_id             = aws_apigatewayv2_api.api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.create_event.invoke_arn
+  integration_method = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "create_event_route" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST /event"
+  target    = "integrations/${aws_apigatewayv2_integration.create_event_integration.id}"
+}
+
+resource "aws_lambda_permission" "allow_apigw_create_event" {
+  statement_id  = "AllowExecutionFromAPIGWCreateEvent"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.create_event.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "get_event_integration" {
+  api_id             = aws_apigatewayv2_api.api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.get_event.invoke_arn
+  integration_method = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_event_route" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /event/{eventId}"
+  target    = "integrations/${aws_apigatewayv2_integration.get_event_integration.id}"
+}
+
+resource "aws_lambda_permission" "allow_apigw_get_event" {
+  statement_id  = "AllowExecutionFromAPIGWGetEvent"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_event.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "delete_event_integration" {
+  api_id             = aws_apigatewayv2_api.api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.delete_event.invoke_arn
+  integration_method = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "delete_event_route" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "DELETE /event/{eventId}"
+  target    = "integrations/${aws_apigatewayv2_integration.delete_event_integration.id}"
+}
+
+resource "aws_lambda_permission" "allow_apigw_delete_event" {
+  statement_id  = "AllowExecutionFromAPIGWDeleteEvent"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.delete_event.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+# --------------------
+# API Gateway Integrations and Routes for Team Management
+# --------------------
+resource "aws_apigatewayv2_integration" "create_team_integration" {
+  api_id             = aws_apigatewayv2_api.api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.create_team.invoke_arn
+  integration_method = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "create_team_route" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST /team"
+  target    = "integrations/${aws_apigatewayv2_integration.create_team_integration.id}"
+}
+
+resource "aws_lambda_permission" "allow_apigw_create_team" {
+  statement_id  = "AllowExecutionFromAPIGWCreateTeam"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.create_team.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "get_team_integration" {
+  api_id             = aws_apigatewayv2_api.api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.get_team.invoke_arn
+  integration_method = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_team_route" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /team/{teamId}"
+  target    = "integrations/${aws_apigatewayv2_integration.get_team_integration.id}"
+}
+
+resource "aws_lambda_permission" "allow_apigw_get_team" {
+  statement_id  = "AllowExecutionFromAPIGWGetTeam"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_team.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "delete_team_integration" {
+  api_id             = aws_apigatewayv2_api.api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.delete_team.invoke_arn
+  integration_method = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "delete_team_route" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "DELETE /team/{teamId}"
+  target    = "integrations/${aws_apigatewayv2_integration.delete_team_integration.id}"
+}
+
+resource "aws_lambda_permission" "allow_apigw_delete_team" {
+  statement_id  = "AllowExecutionFromAPIGWDeleteTeam"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.delete_team.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+# --------------------
 # API Gateway Integration and Route for Endpoints Dashboard
 # --------------------
 resource "aws_apigatewayv2_integration" "endpoints_dashboard_integration" {
@@ -522,6 +814,30 @@ output "api_endpoints" {
     user_endpoints = {
       create_user = "${aws_apigatewayv2_stage.api_stage.invoke_url}/user"
       signin_user = "${aws_apigatewayv2_stage.api_stage.invoke_url}/user/signin"
+    }
+    event_endpoints = {
+      get_all_events = "${aws_apigatewayv2_stage.api_stage.invoke_url}/events/all"
+      get_events = "${aws_apigatewayv2_stage.api_stage.invoke_url}/events"
+      get_events_owned_by_organizer = "${aws_apigatewayv2_stage.api_stage.invoke_url}/events/{organizerId}"
+      create_event = "${aws_apigatewayv2_stage.api_stage.invoke_url}/event"
+      get_event = "${aws_apigatewayv2_stage.api_stage.invoke_url}/event/{eventId}"
+      update_event = "${aws_apigatewayv2_stage.api_stage.invoke_url}/event/{eventId}"
+      delete_event = "${aws_apigatewayv2_stage.api_stage.invoke_url}/event/{eventId}"
+    }
+    team_endpoints = {
+      get_all_teams = "${aws_apigatewayv2_stage.api_stage.invoke_url}/teams/all"
+      get_teams = "${aws_apigatewayv2_stage.api_stage.invoke_url}/teams"
+      create_team = "${aws_apigatewayv2_stage.api_stage.invoke_url}/team"
+      get_team = "${aws_apigatewayv2_stage.api_stage.invoke_url}/team/{teamId}"
+      update_team = "${aws_apigatewayv2_stage.api_stage.invoke_url}/team/{teamId}"
+      delete_team = "${aws_apigatewayv2_stage.api_stage.invoke_url}/team/{teamId}"
+      add_players_to_team = "${aws_apigatewayv2_stage.api_stage.invoke_url}/team/add"
+      remove_players_from_team = "${aws_apigatewayv2_stage.api_stage.invoke_url}/team/remove"
+    }
+    event_registration_endpoints = {
+      get_all_registered_events_for_player = "${aws_apigatewayv2_stage.api_stage.invoke_url}/events/registered/{playerId}"
+      register_for_event = "${aws_apigatewayv2_stage.api_stage.invoke_url}/event/register"
+      delete_registration_for_event = "${aws_apigatewayv2_stage.api_stage.invoke_url}/event/{eventId}/{teamId}"
     }
   }
 }

@@ -20,12 +20,58 @@ def lambda_handler(event, context):
             "content_type": "text/html",
             "curl_sample": f"curl -X GET {base_url}/endpoints"
         },
+        # User Management Endpoints
         {
             "method": "POST", 
             "path": "/user",
-            "description": "Create a new user",
+            "description": "Create a new user with first_name, last_name, email, phone_number",
             "content_type": "application/json",
-            "curl_sample": f'''curl -X POST {base_url}/user -H "Content-Type: application/json" -d '{{"username": "john_doe", "email": "john@example.com", "full_name": "John Doe"}}' '''
+            "curl_sample": f'''curl -X POST {base_url}/user -H "Content-Type: application/json" -d '{{"username": "john_doe", "first_name": "John", "last_name": "Doe", "email": "john@example.com", "phone_number": "+1234567890"}}' '''
+        },
+        {
+            "method": "POST", 
+            "path": "/user/signin",
+            "description": "Sign in an existing user",
+            "content_type": "application/json",
+            "curl_sample": f'''curl -X POST {base_url}/user/signin -H "Content-Type: application/json" -d '{{"username": "john_doe", "password": "your_password"}}' '''
+        },
+        # Event Management Endpoints
+        {
+            "method": "POST", 
+            "path": "/event",
+            "description": "Create a new event as an organizer",
+            "content_type": "application/json",
+            "curl_sample": f'''curl -X POST {base_url}/event -H "Content-Type: application/json" -d '{{"organizer_id": "user123", "event_name": "Soccer Tournament", "date_start": "2024-06-01", "date_end": "2024-06-03", "location": "Central Park", "additional_info": "Bring your own water bottle"}}' '''
+        },
+        {
+            "method": "DELETE", 
+            "path": "/event/{{eventId}}",
+            "description": "Delete an event (only by organizer)",
+            "content_type": "application/json",
+            "curl_sample": f'''curl -X DELETE {base_url}/event/event123 -H "Content-Type: application/json" -d '{{"organizer_id": "user123"}}' '''
+        },
+        # Team Management Endpoints
+        {
+            "method": "POST", 
+            "path": "/team",
+            "description": "Create a new team as a team captain",
+            "content_type": "application/json",
+            "curl_sample": f'''curl -X POST {base_url}/team -H "Content-Type: application/json" -d '{{"team_captain_id": "user123", "team_name": "Lightning Bolts", "parent_team_id": "parent_team456"}}' '''
+        },
+        {
+            "method": "DELETE", 
+            "path": "/team/{{teamId}}",
+            "description": "Delete a team (only by team captain)",
+            "content_type": "application/json",
+            "curl_sample": f'''curl -X DELETE {base_url}/team/team123 -H "Content-Type: application/json" -d '{{"team_captain_id": "user123"}}' '''
+        },
+        # Event Registration Endpoints (placeholder)
+        {
+            "method": "POST", 
+            "path": "/event-registration",
+            "description": "Register a team for an event",
+            "content_type": "application/json",
+            "curl_sample": f'''curl -X POST {base_url}/event-registration -H "Content-Type: application/json" -d '{{"event_id": "event123", "team_id": "team456", "event_name": "Soccer Tournament", "team_name": "Lightning Bolts"}}' '''
         },
     ]
 

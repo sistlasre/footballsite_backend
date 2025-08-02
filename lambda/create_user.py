@@ -23,7 +23,13 @@ def lambda_handler(event, context):
         # Extract username and password from request
         username = body.get('username')
         password = body.get('password')
+        first_name = body.get('first_name', '')
+        last_name = body.get('last_name', '')
+        email = body.get('email', '')
+        phone_number = body.get('phone_number', '')
         extra_info = body.get('extra_info', {})
+
+        print(f"What was passed in: {str(body)}")
 
         # Validate required fields
         if not username or not password:
@@ -73,6 +79,10 @@ def lambda_handler(event, context):
             'user_id': user_id,
             'username': username,
             'password': password_hash,
+            'first_name': first_name,
+            'last_name': last_name,
+            'email': email,
+            'phone_number': phone_number,
             'extra_info': extra_info,
             'created_at': datetime.utcnow().isoformat(),
             'updated_at': datetime.utcnow().isoformat()
@@ -86,6 +96,10 @@ def lambda_handler(event, context):
             'user_id': user_id,
             'username': username,
             'extra_info': extra_info,
+            'first_name': first_name,
+            'last_name': last_name,
+            'email': email,
+            'phone_number': phone_number,
             'created_at': user_item['created_at']
         }
 
