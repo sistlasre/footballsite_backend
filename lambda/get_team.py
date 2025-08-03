@@ -20,7 +20,6 @@ def lambda_handler(event, context):
             })
         }
 
-    # First, verify that the requesting user is the team captain
     try:
         response = dynamodb.get_item(
             TableName=os.environ['TEAMS_TABLE'],
@@ -43,6 +42,14 @@ def lambda_handler(event, context):
         )
         team_members = response['Responses'][os.environ['USER_TABLE']]
 
+        response = dynamodb.query(
+            TableName=os.environ['TEAMS_TABLE'],
+            IndexName='parent_team_id-index',
+            KeyConditionExpression='parent_team_id = :parent_team_id',
+            ExpressionAttributeValues={':parent_team_id': {'S': team_id}}
+        )
+        sub_teams = response['Items']
+
         return {
             'statusCode': 200,
             'body': json.dumps({
@@ -50,7 +57,8 @@ def lambda_handler(event, context):
                     'id': team['id']['S'],
                     'name': team['name']['S'],
                     'team_captain_id': team['team_captain_id']['S'],
-                    'members': [{'id': member['user_id']['S'], 'name': member['first_name']['S'] + " " + member['last_name']['S']} for member in team_members]
+                    'members': [{'id': member['user_id']['S'], 'name': member['first_name']['S'] + " " + member['last_name']['S']} for member in team_members],
+                    'subTeams': [{'id': team['id']['S'], 'name': team['name']['S']} for team in sub_teams]
                 }
             })
         }
