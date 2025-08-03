@@ -297,6 +297,7 @@ resource "aws_iam_role_policy" "lambda_permissions" {
         Action   = [
           "dynamodb:PutItem",
           "dynamodb:GetItem",
+          "dynamodb:BatchGetItem",
           "dynamodb:UpdateItem",
           "dynamodb:DeleteItem",
           "dynamodb:Query",
@@ -442,6 +443,28 @@ resource "aws_lambda_function" "delete_event" {
   }
 }
 
+resource "aws_lambda_function" "get_events_for_organizer" {
+  function_name = "${var.project_name}-get-events-for-organizer"
+  role          = aws_iam_role.lambda_exec_role.arn
+  runtime       = "python3.9"
+  handler       = "get_events_for_organizer.lambda_handler"
+  timeout       = 30
+  memory_size   = 512
+
+  filename         = "lambda/get_events_for_organizer.zip"
+  source_code_hash = filebase64sha256("lambda/get_events_for_organizer.zip")
+
+  environment {
+    variables = {
+      EVENTS_TABLE = aws_dynamodb_table.events_table.name
+    }
+  }
+
+  tags = {
+    Name = "Get Events for Organizer Lambda"
+  }
+}
+
 # --------------------
 # Lambda Functions for Team Management
 # --------------------
@@ -511,6 +534,28 @@ resource "aws_lambda_function" "delete_team" {
 
   tags = {
     Name = "Delete Team Lambda"
+  }
+}
+
+resource "aws_lambda_function" "get_teams_for_user" {
+  function_name = "${var.project_name}-get-teams-for-user"
+  role          = aws_iam_role.lambda_exec_role.arn
+  runtime       = "python3.9"
+  handler       = "get_teams_for_user.lambda_handler"
+  timeout       = 30
+  memory_size   = 512
+
+  filename         = "lambda/get_teams_for_user.zip"
+  source_code_hash = filebase64sha256("lambda/get_teams_for_user.zip")
+
+  environment {
+    variables = {
+      TEAMS_TABLE = aws_dynamodb_table.teams_table.name
+    }
+  }
+
+  tags = {
+    Name = "Get Teams for User Lambda"
   }
 }
 
@@ -681,6 +726,28 @@ resource "aws_lambda_permission" "allow_apigw_delete_event" {
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
 
+resource "aws_apigatewayv2_integration" "get_events_for_organizer_integration" {
+  api_id             = aws_apigatewayv2_api.api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.get_events_for_organizer.invoke_arn
+  integration_method = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_events_for_organizer_route" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /user/{userId}/organizer/events"
+  target    = "integrations/${aws_apigatewayv2_integration.get_events_for_organizer_integration.id}"
+}
+
+resource "aws_lambda_permission" "allow_apigw_get_events_for_organizer" {
+  statement_id  = "AllowExecutionFromAPIGWGetEventsForOrganizer"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_events_for_organizer.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
 # --------------------
 # API Gateway Integrations and Routes for Team Management
 # --------------------
@@ -746,6 +813,28 @@ resource "aws_lambda_permission" "allow_apigw_delete_team" {
   statement_id  = "AllowExecutionFromAPIGWDeleteTeam"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.delete_team.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "get_teams_for_user_integration" {
+  api_id             = aws_apigatewayv2_api.api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.get_teams_for_user.invoke_arn
+  integration_method = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_teams_for_user_route" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /user/{userId}/teams"
+  target    = "integrations/${aws_apigatewayv2_integration.get_teams_for_user_integration.id}"
+}
+
+resource "aws_lambda_permission" "allow_apigw_get_teams_for_user" {
+  statement_id  = "AllowExecutionFromAPIGWGetTeamsForUser"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_teams_for_user.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }

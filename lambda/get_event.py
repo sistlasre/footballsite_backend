@@ -32,7 +32,7 @@ def lambda_handler(event, context):
 
         return {
             'statusCode': 200,
-            'body': json.dumps({'result': 'success', 'event': response['Item']})
+            'body': json.dumps({'event': response['Item']})
         }
 
     except Exception as e:

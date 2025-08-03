@@ -65,6 +65,20 @@ def lambda_handler(event, context):
             "content_type": "application/json",
             "curl_sample": f'''curl -X DELETE {base_url}/team/team123 -H "Content-Type: application/json" -d '{{"team_captain_id": "user123"}}' '''
         },
+        {
+            "method": "GET", 
+            "path": "/user/{{userId}}/teams",
+            "description": "Get all teams for a specific user (team captain)",
+            "content_type": "application/json",
+            "curl_sample": f'''curl -X GET {base_url}/user/user123/teams'''
+        },
+        {
+            "method": "GET", 
+            "path": "/user/{{userId}}/organizer/events",
+            "description": "Get all events organized by a specific user",
+            "content_type": "application/json",
+            "curl_sample": f'''curl -X GET {base_url}/user/user123/organizer/events'''
+        },
         # Event Registration Endpoints (placeholder)
         {
             "method": "POST", 
